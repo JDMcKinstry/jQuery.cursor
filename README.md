@@ -114,6 +114,8 @@ $(ele).cursor({
 		styles: [ 'pointer', 'crosshair', 'zoom-in' ]
 	});
 
+> List of supported jQuery Events:
 
+> 'blur', 'change', 'click', 'dblclick', 'focus', 'hover', 'keydown', 'keyup', 'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseout', 'mouseover', 'mouseup'
 
 [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/cursor#Values
