@@ -1,5 +1,4 @@
-(function($) {
-	
+;(function($) {
 	var styles = {
 			alias: 'alias',
 			'all-scroll': 'all-scroll',
@@ -206,48 +205,52 @@
 					}
 					
 					if (props['trigger'] != void 0) {
-						var ct = props['trigger'].split(' ');
+						var ct = props['trigger'].split(' '),
+							cursorTriggerMethod = function(e) {
+								var $this = $(this),
+									d = $this.data('cursorDefault'),
+									p = $this.data('cursorProps'),
+									s = $.merge([], $this.data('cursorStyles')),
+									i = s.indexOf($this.get(0).style.cursor ? $this.get(0).style.cursor : 'auto');
+								if (s.length == 1) s.push('auto');
+								if ($this.data('tmrCursorTrigger')) clearTimeout($this.data('tmrCursorTrigger'));
+								$this.data('tmrCursorTrigger', setTimeout(function() {
+									if (!$.isEmptyObject(p) && s.length) {
+										switch (p.triggerStyle) {
+											case 'rand':
+											case 'random':
+												i = Math.floor(Math.random() * s.length - 1);
+												while (i < 0 || i > s.length -1) i = Math.floor(Math.random() * s.length - 1);
+												$this.css('cursor', s[i]);
+												break;
+											case 'prev':
+												i--;
+												if (i < 0) i = s.length - 1;
+												$this.css('cursor', s[i]);
+												break;
+											case 'next':
+											default:
+												i++;
+												if (i > s.length - 1) i = 0;
+												$this.css('cursor', s[i]);
+										}
+									}
+								}));
+							}
 						$.each(ct, function(i, t) {
 							elm.each(function(i) {
 								if (!$(this).data('cursorTriggers')) $(this).data('cursorTriggers', []);
 								if ($.inArray(t, $(this).data('cursorTriggers')) < 0) {
 									$(this).data('cursorTriggers').push(t);
-									$(this).on(t, function(e) {
+									if (t == 'hover') $(this).on('mouseover', cursorTriggerMethod);
+									else $(this).on(t, function(e) {
 										e.stopPropagation();
 										if (e.type == 'mousemove') {
 											var cpl = $(this).data('cursorPositionLast')
 											if (!$.isEmptyObject(cpl) && Math.round(cpl.x) == Math.round(e.pageX) && Math.round(cpl.y) == Math.round(e.pageY)) return $(this);
 											else $(this).data('cursorPositionLast', { x: e.pageX, y: e.pageY })
 										}
-										var $this = $(this),
-											d = $this.data('cursorDefault'),
-											p = $this.data('cursorProps'),
-											s = $this.data('cursorStyles'),
-											i = s.indexOf($this.get(0).style.cursor ? $this.get(0).style.cursor : 'auto');
-										if ($this.data('tmrCursorTrigger')) clearTimeout($this.data('tmrCursorTrigger'));
-										$this.data('tmrCursorTrigger', setTimeout(function() {
-											if (!$.isEmptyObject(p) && s.length) {
-												//if ((s.indexOf(d) < 0) && s.length == 1) s.unshift(d);
-												switch (p.triggerStyle) {
-													case 'rand':
-													case 'random':
-														i = Math.floor(Math.random() * s.length - 1);
-														while (i < 0 || i > s.length -1) i = Math.floor(Math.random() * s.length - 1);
-														$this.css('cursor', s[i]);
-														break;
-													case 'prev':
-														i--;
-														if (i < 0) i = s.length - 1;
-														$this.css('cursor', s[i]);
-														break;
-													case 'next':
-													default:
-														i++;
-														if (i > s.length - 1) i = 0;
-														$this.css('cursor', s[i]);
-												}
-											}
-										}));
+										cursorTriggerMethod.apply(this, arguments);
 									});
 								}
 							});
