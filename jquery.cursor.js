@@ -26,7 +26,9 @@
 			url: void 0,
 			'vertical-text': 'vertical-text',
 			'w-resize': 'w-resize',
-			wait: 'wait'
+			wait: 'wait',
+			'zoom-in': 'zoom-in',
+			'zoom-out': 'zoom-out'
 		},
 		cursorStyles = function() { $.extend(this, styles) };
 	
@@ -51,6 +53,7 @@
 			var args = arguments,
 				elm = $([]),
 				command = void 0,
+				secondary = void 0,
 				cursors = [],
 				props = {
 					delaySet: false,
@@ -64,11 +67,14 @@
 				for (x in args) {
 					var argsX = args[x];
 					switch (typeof argsX) {
+						case 'boolean':
+							secondary = argsX;
+							break;
 						case 'object':
 							if (argsX instanceof Object && "jquery" in argsX) {
 								if ($(document).find(argsX).length) elm = elm.length ? elm.add(argsX) : argsX;
 							}
-							else if (argsX instanceof Array) $.each(function(i, v){ if (cs.hasOwnProperty(v)) cursors.push(v); });
+							else if (argsX instanceof Array) $.each(argsX, function(i, v){ if (cs.hasOwnProperty(v)) cursors.push(v); });
 							else $.extend(true, props, argsX);
 							break;
 						case 'string':
@@ -76,7 +82,8 @@
 							else if (!/#|\./.test(argsX.charAt(0)) && $(document).find("#" + argsX).length) elm = elm.length ? elm.add($("#" + argsX)) : $("#" + argsX);
 							else if (!/#|\./.test(argsX.charAt(0)) && $(document).find("." + argsX).length) elm = elm.length ? elm.add($("." + argsX)) : $("." + argsX);
 							else if (cs.hasOwnProperty(argsX)) cursors.push(argsX);
-							else command = argsX;
+							else if (!command) command = argsX;
+							else secondary = argsX;
 							break;
 						default:
 							//	throw error? TODO: implement some error control for developers ... but oh the headache for other sections ...
@@ -98,16 +105,15 @@
 					if (command) {
 						var d = elm.data('cursorDefault'),
 							p = elm.data('cursorProps'),
-							s = elm.data('cursorStyles'),
-							i = s.indexOf(elm.get(0).style.cursor ? elm.get(0).style.cursor : 'auto');
+							s = elm.data('cursorStyles');
 						switch(command) {
-							case 'clear':
+							case 'clear':	//	simply clear current set cursor style
 								return elm.each(function(i) { $(this).css('cursor', ''); });
 								break;
-							case 'revert':
+							case 'revert':	//	revert element to default cursor style 
 								return elm.each(function(i) { $(this).css('cursor', $(this).data('cursorDefault')); });
 								break;
-							case 'reset':
+							case 'reset':	//	remove all data and cursor sets, revert to default
 								return elm.each(function(i) { $(this).css('cursor', $(this).data('cursorDefault')).removeData([ 'cursorDefault', 'cursorProps', 'cursorStyles' ]); });
 								break;
 							case 'isHover':
@@ -119,32 +125,54 @@
 										else if (this.getAttribute('name')) a[this.getAttribute('name')] = $(this).is(':hover');
 										else a[this.tagName.toLowerCase()] = $(this).is(':hover');
 									});
+									//	if secondary is set, then it's assumed to return a boolean
+									//	determining if ALL given elements are hovered over
+									if (secondary === true) {
+										for (var x in a) if (!a[x]) return false;
+										return true;
+									}
 									return a;
 								}
 								break;
 							case 'position':
-								var cpos = $.cursor.position;
-								
-								if (cpos.x != void 0 && cpos.y != void 0) {
+								var cpos = $.cursor.position,
+									pos = { x: cpos.x, y: cpos.y };
+								//	TODO: add in secondary for relative position base on client or screen position
+								if (pos.x != void 0 && pos.y != void 0) {
 									if (elm.length == 1) {
 										var tpos = elm.offset();
-										return { x: cpos.x - tpos.left, y: cpos.y - tpos.top };
+										return { x: pos.x - tpos.left, y: pos.y - tpos.top };
 									}
 									else {
 										var a = {};
 										elm.each(function(i) {
-											var tpos = $(this).offset();
-											if (this.id) a['#' + this.id] = { x: cpos.x - tpos.left, y: cpos.y - tpos.top };
-											else if (this.getAttribute('name')) a[this.getAttribute('name')] = { x: cpos.x - tpos.left, y: cpos.y - tpos.top };
-											else a[this.tagName.toLowerCase()] = { x: cpos.x - tpos.left, y: cpos.y - tpos.top };
+											var tpos = $(this).offset(),
+												key = this.id ? this.id : this.getAttribute('name') ? this.getAttribute('name') : this.tagName.toLowerCase();
+											a[key] = { x: pos.x - tpos.left, y: pos.y - tpos.top };
 										});
 										return a;
 									}
 								}
 								else throw 'cursor position is currently turned off!';
 								break;
+							case 'toggle':
+								switch (secondary) {
+									case 'first': return elm.cursor('toggleFirst');
+									case 'last': return elm.cursor('toggleLast');
+									case 'next': return elm.cursor('toggleNext');
+									case 'prev': return elm.cursor('togglePrev');
+									case 'rand': return elm.cursor('toggleRand');
+								}
+								break;
+							case 'toggleFirst':
+								if (s.length) return elm.css('cursor', s[0]);
+								break;
+							case 'toggleLast':
+								if (s.length) return elm.css('cursor', s[s.length-1]);
+								break;
 							case 'toggleNext':
 								if (s.length) {
+									var i = s.indexOf(elm.get(0).style.cursor ? elm.get(0).style.cursor : 'auto');
 									i++;
 									if (i > s.length - 1) i = 0;
 									return elm.css('cursor', s[i]);
@@ -152,6 +180,7 @@
 								break;
 							case 'togglePrev':
 								if (s.length) {
+									var i = s.indexOf(elm.get(0).style.cursor ? elm.get(0).style.cursor : 'auto');
 									i--;
 									if (i < 0) i = s.length - 1;
 									return elm.css('cursor', s[i]);
@@ -160,8 +189,9 @@
 							case 'toggleRand':
 							case 'toggleRandom':
 								if (s.length) {
-									i = Math.floor(Math.random() * s.length - 1);
-									while (i < 0 || i > s.length -1) i = Math.floor(Math.random() * s.length - 1);
+									var i = s.indexOf(elm.get(0).style.cursor ? elm.get(0).style.cursor : 'auto');
+									i = Math.floor(Math.random() * s.length);
+									while (i < 0 || i >= s.length) i = Math.floor(Math.random() * s.length);
 									return elm.css('cursor', s[i]);
 								}
 								break;
@@ -183,6 +213,7 @@
 								if ($.inArray(t, $(this).data('cursorTriggers')) < 0) {
 									$(this).data('cursorTriggers').push(t);
 									$(this).on(t, function(e) {
+										e.stopPropagation();
 										if (e.type == 'mousemove') {
 											var cpl = $(this).data('cursorPositionLast')
 											if (!$.isEmptyObject(cpl) && Math.round(cpl.x) == Math.round(e.pageX) && Math.round(cpl.y) == Math.round(e.pageY)) return $(this);
@@ -227,7 +258,10 @@
 					
 					//	set cursor styles data and possibly set cursor
 					if (cursors.length) {
-						elm.each(function(i) { if (!$(this).data('cursorDefault')) $(this).data('cursorDefault', $(this).css('cursor')); });
+						elm.each(function(i) {
+							if (!$(this).data('cursorDefault')) $(this).data('cursorDefault', $(this).css('cursor'));
+							else $(this).cursor('clear');
+						});
 						$.each(cursors, function(i, v) {
 							if (/(url\([^\)]*\))/.test(v)) {
 								var av = v.split(',');
@@ -256,7 +290,17 @@
 								return $.map(a, function(v, k) { return k; });
 								break;
 							case 'position':
-								return $.cursor.position;
+								var cpos = $.cursor.position;
+								switch (secondary) {
+									case 'client':
+										return { x: cpos.clientX, y: cpos.clientY };
+										break;
+									case 'screen':
+										return { x: cpos.screenX, y: cpos.screenY };
+										break;
+									case 'page':
+									default: return { x: cpos.x, y: cpos.y };
+								}
 								break;
 							default: return $('body').cursor(command);
 						}
@@ -279,10 +323,23 @@
 	});
 	
 	//	maintain overall mouse position
-	var cursorPosition = function(delay) { this.x = void 0; this.y = void 0; if (!delay) this.on(); },
-		setCursorPosition = function(e) { $.cursor.position = { x: e.pageX, y: e.pageY }; };
+	var cursorPosition = function(delay) {
+			this.screenY = this.screenX = this.pageY = this.pageX = this.clientY = this.clientX = this.y = this.x = void 0;
+			if(!delay)this.on();
+		};
 	if (Object['defineProperty']) {
-		Object.defineProperty(cursorPosition.prototype, 'setCursorPosition', { value: function(e) { $.extend(true, $.cursor.position, { x: e.pageX, y: e.pageY }); } });
+		Object.defineProperty(cursorPosition.prototype, 'setCursorPosition', { value: function(e) {
+			$.extend(true, $.cursor.position, {
+				x: e.pageX,
+				y: e.pageY,
+				clientX: e.clientX,
+				clientY: e.clientY,
+				pageX: e.pageX,
+				pageY: e.pageY,
+				screenX: e.screenX,
+				screenY: e.screenY
+			});
+		} });
 		Object.defineProperty(cursorPosition.prototype, 'on', { value: function() { $(document).on('mousemove', this['setCursorPosition']); } });
 		Object.defineProperty(cursorPosition.prototype, 'off', { value: function() {
 			$(document).off('mousemove', this['setCursorPosition']);
